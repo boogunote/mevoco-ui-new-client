@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="layout" content="main"/>
+    <script type="text/javascript" src="sockjs.js"></script>
+    <script type="text/javascript" src="stomp.js"></script>
+    <script type="text/javascript" src="jquery-2.2.0.min.js"></script>
+
+    <script type="text/javascript">
+      $(function() {
+        var socket = new SockJS("http://192.168.79.3:8080/stomp");
+        var client = Stomp.over(socket);
+
+        client.connect({}, function() {
+          client.subscribe("/topic/login", function(message) {
+            $("#helloDiv").append(message.body);
+          });
+        });
+
+        $("#helloButton").click(function() {
+          client.send("/app/login", {}, JSON.stringify("world"));
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <button id="helloButton">hello</button>
+    <div id="helloDiv"></div>
+  </body>
+</html>
