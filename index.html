@@ -8,17 +8,67 @@
 
     <script type="text/javascript">
       $(function() {
-        var socket = new SockJS("http://192.168.79.3:8080/stomp");
+        var socket = new SockJS("http://localhost:8080/stomp");
         var client = Stomp.over(socket);
 
         client.connect({}, function() {
           client.subscribe("/topic/login", function(message) {
             $("#helloDiv").append(message.body);
           });
+          client.subscribe("/topic/sync", function(message) {
+            var result = JSON.parse(message.body);
+            console.log(result);
+            if (window.pendingSyncReq) {
+              window.pendingSyncReq(result);
+              delete window.pendingSyncReq;
+            }
+          });
         });
 
         $("#helloButton").click(function() {
           client.send("/app/login", {}, JSON.stringify("world"));
+        });
+
+        $("#loginButon").click(function() {
+          var data = {
+            "org.zstack.header.identity.APILogInByAccountMsg": {
+              accountName: "admin",
+              password: "b109f3bbbc244eb82441917ed06d618b9008dd09b3befd1b5e07394c706a8bb980b1d7785e5976ec049b46df5f1326af5a2ea6d103fd07c95385ffab0cacbc86", // sha512 hash of 'password'
+            }
+          };
+          client.send("/app/sync", {}, JSON.stringify(data));
+          new Promise(function(resolve) {
+            window.pendingSyncReq = resolve;
+          })
+          .then(function(result) {
+            window.sessionUuid = result.inventory.uuid;
+          });
+        });
+
+        $("#testImage").click(function() {
+          var data = {
+            "org.zstack.header.image.APIQueryImageMsg": {
+              count: false,
+              start: 0,
+              limit: "20",
+              replyWithCount: true,
+              sortBy: "name",
+              sortDirection: "asc",
+              conditions: [
+                {"name":"status","op":"!=","value":"Deleted"}
+              ],
+              session: {
+                uuid: window.sessionUuid
+              }
+            }
+          };
+          client.send("/app/sync", {}, JSON.stringify(data));
+          new Promise(function(resolve) {
+            window.pendingSyncReq = resolve;
+          })
+          .then(function(result) {
+            window.images = result.inventories;
+          });
         });
       });
     </script>
@@ -26,5 +76,8 @@
   <body>
     <button id="helloButton">hello</button>
     <div id="helloDiv"></div>
+    <button id="loginButon">login</button>
+    <div/>
+    <button id="testImage">get and enable/disable image</button>
   </body>
 </html>
